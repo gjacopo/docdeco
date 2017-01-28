@@ -19,7 +19,7 @@ This provides with the `Docstring` class decorator for docstring documentation.
 
 It helps create decorators that apply on any kind of object (class, methods, ...) 
 and enable to modify/update, as well as parameterize, the docstring by rewritting 
-and reformating (possibly emptying) its :literal:`__doc__` special attribute of 
+and reformating (possibly emptying) its `__doc__` special attribute of 
 the considered object (and only this). 
         
 **Note** 
