@@ -49,9 +49,6 @@ except:
 # CLASSES/METHODS
 #==============================================================================
 
-#/****************************************************************************/
-# Error/Warning 
-#/****************************************************************************/
 class DecoError(Exception):  
     def __init__(self, msg, expr=None):    
         self.msg = msg
@@ -65,109 +62,6 @@ class DecoWarning(Warning):
     def __str__(self):              return repr(self.msg)
     def __repr__(self):             return repr(self.msg)
 
-
-#/****************************************************************************/
-# Method wrapper 
-#/****************************************************************************/
-try: 
-    assert USE_WRAPT_OR_NOT and wrapt
-except:
-    method_wrapper = functools.wraps
-else:
-    #/************************************************************************/
-    def _enabled_decorators():
-        return True
-    #/************************************************************************/
-    @wrapt.decorator(enabled=_enabled_decorators)
-    def method_wrapper(wrapped, instance, _args, _kwargs):
-        return wrapped(*_args, **_kwargs)
-    
-
-#/****************************************************************************/
-# metaclass maker
-#/****************************************************************************/
-def metaclass_maker(left_metas=(), right_metas=()):
-    """Deal with metaclass conflict, i.e. when "the metaclass of a derived class 
-    must be a (non-strict) subclass of the metaclasses of all its bases"
-        
-        >>> metaclass = metaclass_maker(left_metas=(), right_metas=())
-        
-    Arguments:
-    left_metas,right_metas : class
-        classes (not strings) representing the metaclasses to 'merge'; note that
-        :Data:`left_metas` has priority over :data:`right_metas`\ .
-        
-    Note
-    ----
-    The simplest case where a metatype conflict happens is the following. 
-    Consider a class :class:`A` with metaclass :class:`M_A` and a class :class:`B` 
-    with an independent metaclass :class:`M_B`; suppose we derive :class:`C` from 
-    :class:`A` and :class:`B`. 
-    The question is: what is the metaclass of :class:`C` ? Is it :class:`M_A` or
-    :class:`M_B` ?    
-    The correct answer is :class:`M_C`, where :class:`M_C` is a metaclass that 
-    inherits from :class:`M_A` and :class:`M_B`, as in the following graph:
-
-    .. digraph:: metaclass_conflict
-    
-       "M_A" -> "A"
-       "M_B" -> "B"
-       "A" -> "C"
-       "B" -> "C"
-       "M_A" -> "M_C"
-       "M_B" -> "M_C"
-       "M_C" -> "C"
-
-    Note
-    ----
-    see http://code.activestate.com/recipes/204197-solving-the-metaclass-conflict/
-    """
-    def skip_redundant(iterable, skipset=None):
-        # redundant items are repeated items or items in the original skipset
-        if skipset is None: skipset = set()
-        for item in iterable:
-            if item not in skipset:
-                skipset.add(item)
-                yield item    
-    def remove_redundant(metaclasses):
-        skipset = set([types.ClassType])
-        for meta in metaclasses: # determines the metaclasses to be skipped
-            skipset.update(inspect.getmro(meta)[1:])
-        return tuple(skip_redundant(metaclasses, skipset))    
-        # now the core of the function: two mutually recursive functions ##
-    memoized_metaclasses_map = {}    
-    def get_noconflict_metaclass(bases, left_metas, right_metas):
-         # make tuple of needed metaclasses in specified priority order
-         metas = left_metas + tuple(map(type, bases)) + right_metas
-         needed_metas = remove_redundant(metas)
-         # return existing confict-solving meta, if any
-         if needed_metas in memoized_metaclasses_map:
-           return memoized_metaclasses_map[needed_metas]
-         # nope: compute, memoize and return needed conflict-solving meta
-         elif not needed_metas:         # wee, a trivial case, happy us
-             meta = type
-         elif len(needed_metas) == 1: # another trivial case
-            meta = needed_metas[0]
-         # check for recursion, can happen i.e. for Zope ExtensionClasses
-         elif needed_metas == bases: 
-             raise TypeError("Incompatible root metatypes", needed_metas)
-         else: # gotta work ...
-             metaname = '_' + ''.join([m.__name__ for m in needed_metas])
-             meta = classmaker()(metaname, needed_metas, {})
-         memoized_metaclasses_map[needed_metas] = meta
-         return meta         
-    def classmaker(left_metas=(), right_metas=()):
-        class make_class(type):
-            def __new__(meta, name, bases, attrs):
-                metaclass = get_noconflict_metaclass(bases, left_metas, right_metas)
-                return metaclass(name, bases, attrs)
-            #def make_class(name, bases, adict):
-            #    metaclass = get_noconflict_metaclass(bases, left_metas, right_metas)
-            #    return metaclass(name, bases, adict)
-        make_class.__name__ = '__metaclass__'
-        return make_class    
-    return classmaker(left_metas, right_metas)
-        
 class Docstring(object):
     """A bunch of docstrings classes, metaclasses and methods decorators.
     """
